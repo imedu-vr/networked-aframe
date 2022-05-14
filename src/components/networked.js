@@ -6,6 +6,8 @@ var OBJECT3D_COMPONENTS = ['position', 'rotation', 'scale'];
 
 const EPSILON = 0.00000000001;
 
+const { addComponent, removeComponent } = require("bitecs");
+
 function defaultRequiresUpdate() {
   let cachedData = null;
 
@@ -170,6 +172,13 @@ AFRAME.registerComponent('networked', {
     } else {
       networkId = this.data.networkId;
     }
+ 
+    const eid = this.el.object3D.eid;
+    addComponent(APP.world, APP.world.nameToComponent["networked"], eid);
+    APP.world.nameToComponent["networked"].templateId[eid] = 1; // Hopefully this is TEMPLATE_ID_LEGACY_NAF
+    APP.world.eid2nid.set(eid, networkId)
+    APP.world.nid2eid.set(networkId, eid);
+
 
     if (!this.el.id) {
       this.el.setAttribute('id', 'naf-' + networkId);
@@ -225,6 +234,7 @@ AFRAME.registerComponent('networked', {
 
       this.onOwnershipGainedEvent.oldOwner = owner;
       this.el.emit(this.OWNERSHIP_GAINED, this.onOwnershipGainedEvent);
+      addComponent(APP.world, APP.world.nameToComponent.owned, this.el.object3D.eid);
 
       this.onOwnershipChangedEvent.oldOwner = owner;
       this.onOwnershipChangedEvent.newOwner = NAF.clientId;
@@ -232,6 +242,7 @@ AFRAME.registerComponent('networked', {
 
       return true;
     }
+    console.log("failed to take ownership", this.el);
     return false;
   },
 
@@ -270,6 +281,7 @@ AFRAME.registerComponent('networked', {
     if (this.data.owner === '') {
       this.lastOwnerTime = NAF.connection.getServerTime();
       this.el.setAttribute(this.name, { owner: NAF.clientId, creator: NAF.clientId });
+      addComponent(APP.world, APP.world.nameToComponent.owned, this.el.object3D.eid);
       setTimeout(() => {
         //a-primitives attach their components on the next frame; wait for components to be attached before calling syncAll
         if (!this.el.parentNode){
@@ -278,6 +290,15 @@ AFRAME.registerComponent('networked', {
         }
         this.syncAll(undefined, true);
       }, 0);
+    } else if (this.data.owner === "scene") {
+      setTimeout(() => {
+        // This entity might have been removed from the scene
+        if (!this.el.parentNode) return;
+
+        if (this.data.owner === "scene") {
+          NAF.utils.takeOwnership(this.el);
+        }
+      }, 2000 + Math.floor(Math.random() * 2000));
     }
 
     document.body.removeEventListener('connected', this.onConnected, false);
@@ -391,6 +412,10 @@ AFRAME.registerComponent('networked', {
   },
 
   gatherComponentsData: function(fullSync) {
+    const schema = NAF.schemas.schemaDict[this.data.template]
+    if(schema.serialize) {
+      return schema.serialize(this.el, fullSync)
+    }
     var componentsData = null;
 
     for (var i = 0; i < this.componentSchemas.length; i++) {
@@ -494,6 +519,7 @@ AFRAME.registerComponent('networked', {
       if (wasMine) {
         this.onOwnershipLostEvent.newOwner = newOwner;
         this.el.emit(this.OWNERSHIP_LOST, this.onOwnershipLostEvent);
+        removeComponent(APP.world, APP.world.nameToComponent.owned, this.el.object3D.eid);
       }
       this.onOwnershipChangedEvent.oldOwner = oldOwner;
       this.onOwnershipChangedEvent.newOwner = newOwner;
@@ -506,6 +532,12 @@ AFRAME.registerComponent('networked', {
   },
 
   updateNetworkedComponents: function(components) {
+    const schema = NAF.schemas.schemaDict[this.data.template]
+    if(schema.deserialize) {
+      schema.deserialize(this.el, components)
+      return
+    }
+
     for (var componentIndex = 0, l = this.componentSchemas.length; componentIndex < l; componentIndex++) {
       var componentData = components[componentIndex];
       var componentSchema = this.componentSchemas[componentIndex];
