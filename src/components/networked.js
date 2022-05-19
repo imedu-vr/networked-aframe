@@ -4,6 +4,8 @@ var InterpolationBuffer = require('buffered-interpolation');
 var DEG2RAD = THREE.Math.DEG2RAD;
 var OBJECT3D_COMPONENTS = ['position', 'rotation', 'scale'];
 
+const EPSILON = 0.00000000001;
+
 function defaultRequiresUpdate() {
   let cachedData = null;
 
@@ -300,8 +302,10 @@ AFRAME.registerComponent('networked', {
         if (componentNames.includes("position")) {
           const position = buffer.getPosition();
           if (isValidVector3(position)) {
-            object3D.position.copy(position);
-            object3D.matrixNeedsUpdate = true;
+            if (!object3D.position.near(position, EPSILON)) {
+              object3D.position.copy(position);
+              object3D.matrixNeedsUpdate = true;
+            }
           } else {
             throttle(warnOnInvalidNetworkUpdate, 5000);
           }
@@ -309,8 +313,10 @@ AFRAME.registerComponent('networked', {
         if (componentNames.includes("rotation")) {
           const quaternion = buffer.getQuaternion();
           if (isValidQuaternion(quaternion)) {
-            object3D.quaternion.copy(quaternion);
-            object3D.matrixNeedsUpdate = true;
+            if (!object3D.quaternion.near(quaternion, EPSILON)) {
+              object3D.quaternion.copy(quaternion);
+              object3D.matrixNeedsUpdate = true;
+            }
           } else {
             throttle(warnOnInvalidNetworkUpdate, 5000);
           }
@@ -318,8 +324,10 @@ AFRAME.registerComponent('networked', {
         if (componentNames.includes("scale")) {
           const scale = buffer.getScale();
           if (isValidVector3(scale)) {
-            object3D.scale.copy(scale);
-            object3D.matrixNeedsUpdate = true;
+            if (!object3D.scale.near(scale, EPSILON)) {
+              object3D.scale.copy(scale);
+              object3D.matrixNeedsUpdate = true;
+            }
           } else {
             throttle(warnOnInvalidNetworkUpdate, 5000);
           }
