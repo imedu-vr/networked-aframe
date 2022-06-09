@@ -290,15 +290,6 @@ AFRAME.registerComponent('networked', {
         }
         this.syncAll(undefined, true);
       }, 0);
-    } else if (this.data.owner === "scene") {
-      setTimeout(() => {
-        // This entity might have been removed from the scene
-        if (!this.el.parentNode) return;
-
-        if (this.data.owner === "scene") {
-          NAF.utils.takeOwnership(this.el);
-        }
-      }, 2000 + Math.floor(Math.random() * 2000));
     }
 
     document.body.removeEventListener('connected', this.onConnected, false);
