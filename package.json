@@ -56,6 +56,9 @@
     "watchify": "^3.9.0",
     "webpack": "^1.13.0"
   },
+  "peerDependencies": {
+    "bitecs": "^0.3.38"
+  },
   "keywords": [
     "3d",
     "aframe",
