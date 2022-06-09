@@ -413,10 +413,6 @@ AFRAME.registerComponent('networked', {
   },
 
   gatherComponentsData: function(fullSync) {
-    const schema = NAF.schemas.schemaDict[this.data.template]
-    if(schema.serialize) {
-      return schema.serialize(this.el, fullSync)
-    }
     var componentsData = null;
 
     for (var i = 0; i < this.componentSchemas.length; i++) {
@@ -533,12 +529,6 @@ AFRAME.registerComponent('networked', {
   },
 
   updateNetworkedComponents: function(components) {
-    const schema = NAF.schemas.schemaDict[this.data.template]
-    if(schema.deserialize) {
-      schema.deserialize(this.el, components)
-      return
-    }
-
     for (var componentIndex = 0, l = this.componentSchemas.length; componentIndex < l; componentIndex++) {
       var componentData = components[componentIndex];
       var componentSchema = this.componentSchemas[componentIndex];
