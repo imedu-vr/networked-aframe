@@ -173,12 +173,12 @@ AFRAME.registerComponent('networked', {
       networkId = this.data.networkId;
     }
  
-    const world = APP.world;
+    const world = window.APP.world;
     const eid = this.el.object3D.eid;
-    const Networked = APP.world.nameToComponent["networked"];
+    const Networked = window.APP.world.nameToComponent["networked"];
 
     addComponent(world, Networked, eid);
-    Networked.id[eid] = APP.getSid(networkId)
+    Networked.id[eid] = window.APP.getSid(networkId)
     world.nid2eid.set(Networked.id[eid], eid);
 
     if (!this.el.id) {
@@ -235,7 +235,7 @@ AFRAME.registerComponent('networked', {
 
       this.onOwnershipGainedEvent.oldOwner = owner;
       this.el.emit(this.OWNERSHIP_GAINED, this.onOwnershipGainedEvent);
-      addComponent(APP.world, APP.world.nameToComponent.owned, this.el.object3D.eid);
+      addComponent(window.APP.world, window.APP.world.nameToComponent.owned, this.el.object3D.eid);
 
       this.onOwnershipChangedEvent.oldOwner = owner;
       this.onOwnershipChangedEvent.newOwner = NAF.clientId;
@@ -243,7 +243,6 @@ AFRAME.registerComponent('networked', {
 
       return true;
     }
-    console.log("failed to take ownership", this.el);
     return false;
   },
 
@@ -282,7 +281,7 @@ AFRAME.registerComponent('networked', {
     if (this.data.owner === '') {
       this.lastOwnerTime = NAF.connection.getServerTime();
       this.el.setAttribute(this.name, { owner: NAF.clientId, creator: NAF.clientId });
-      addComponent(APP.world, APP.world.nameToComponent.owned, this.el.object3D.eid);
+      addComponent(window.APP.world, window.APP.world.nameToComponent.owned, this.el.object3D.eid);
       setTimeout(() => {
         //a-primitives attach their components on the next frame; wait for components to be attached before calling syncAll
         if (!this.el.parentNode){
@@ -516,7 +515,7 @@ AFRAME.registerComponent('networked', {
       if (wasMine) {
         this.onOwnershipLostEvent.newOwner = newOwner;
         this.el.emit(this.OWNERSHIP_LOST, this.onOwnershipLostEvent);
-        removeComponent(APP.world, APP.world.nameToComponent.owned, this.el.object3D.eid);
+        removeComponent(window.APP.world, window.APP.world.nameToComponent.owned, this.el.object3D.eid);
       }
       this.onOwnershipChangedEvent.oldOwner = oldOwner;
       this.onOwnershipChangedEvent.newOwner = newOwner;
@@ -604,7 +603,7 @@ AFRAME.registerComponent('networked', {
   },
 
   remove: function () {
-    APP.world.deletedNids.add(APP.getSid(this.data.networkId));
+    window.APP.world.deletedNids.add(window.APP.getSid(this.data.networkId));
     if (this.isMine() && NAF.connection.isConnected()) {
       var syncData = { networkId: this.data.networkId };
       if (NAF.entities.hasEntity(this.data.networkId)) {
