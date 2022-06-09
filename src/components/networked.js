@@ -175,18 +175,11 @@ AFRAME.registerComponent('networked', {
  
     const world = APP.world;
     const eid = this.el.object3D.eid;
-    addComponent(world, APP.world.nameToComponent["networked"], eid);
-    world.nameToComponent["networked"].templateId[eid] = 1; // Hopefully this is TEMPLATE_ID_LEGACY_NAF
-    world.eid2nid.set(eid, networkId)
-    world.nid2eid.set(networkId, eid);
+    const Networked = APP.world.nameToComponent["networked"];
 
-    if (!world.str2sid.has(networkId)) {
-      // TODO: Make this a function call
-      world.str2sid.set(networkId, world.nextSid);
-      world.sid2str.set(world.nextSid, networkId);
-      world.nextSid = world.nextSid + 1;
-    }
-
+    addComponent(world, Networked, eid);
+    Networked.id[eid] = APP.getSid(networkId)
+    world.nid2eid.set(Networked.id[eid], eid);
 
     if (!this.el.id) {
       this.el.setAttribute('id', 'naf-' + networkId);
@@ -621,7 +614,7 @@ AFRAME.registerComponent('networked', {
   },
 
   remove: function () {
-    APP.world.deletedNids.add(APP.world.str2sid.get(this.data.networkId));
+    APP.world.deletedNids.add(APP.getSid(this.data.networkId));
     if (this.isMine() && NAF.connection.isConnected()) {
       var syncData = { networkId: this.data.networkId };
       if (NAF.entities.hasEntity(this.data.networkId)) {
