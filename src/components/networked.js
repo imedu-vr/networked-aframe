@@ -6,6 +6,8 @@ var OBJECT3D_COMPONENTS = ['position', 'rotation', 'scale'];
 
 const EPSILON = 0.00000000001;
 
+const { addComponent, removeComponent } = require("bitecs");
+
 function defaultRequiresUpdate() {
   let cachedData = null;
 
@@ -170,6 +172,14 @@ AFRAME.registerComponent('networked', {
     } else {
       networkId = this.data.networkId;
     }
+ 
+    const world = window.APP.world;
+    const eid = this.el.object3D.eid;
+    const Networked = window.APP.world.nameToComponent["networked"];
+
+    addComponent(world, Networked, eid);
+    Networked.id[eid] = window.APP.getSid(networkId)
+    world.nid2eid.set(Networked.id[eid], eid);
 
     if (!this.el.id) {
       this.el.setAttribute('id', 'naf-' + networkId);
@@ -225,6 +235,7 @@ AFRAME.registerComponent('networked', {
 
       this.onOwnershipGainedEvent.oldOwner = owner;
       this.el.emit(this.OWNERSHIP_GAINED, this.onOwnershipGainedEvent);
+      addComponent(window.APP.world, window.APP.world.nameToComponent.owned, this.el.object3D.eid);
 
       this.onOwnershipChangedEvent.oldOwner = owner;
       this.onOwnershipChangedEvent.newOwner = NAF.clientId;
@@ -270,6 +281,7 @@ AFRAME.registerComponent('networked', {
     if (this.data.owner === '') {
       this.lastOwnerTime = NAF.connection.getServerTime();
       this.el.setAttribute(this.name, { owner: NAF.clientId, creator: NAF.clientId });
+      addComponent(window.APP.world, window.APP.world.nameToComponent.owned, this.el.object3D.eid);
       setTimeout(() => {
         //a-primitives attach their components on the next frame; wait for components to be attached before calling syncAll
         if (!this.el.parentNode){
@@ -494,6 +506,7 @@ AFRAME.registerComponent('networked', {
       if (wasMine) {
         this.onOwnershipLostEvent.newOwner = newOwner;
         this.el.emit(this.OWNERSHIP_LOST, this.onOwnershipLostEvent);
+        removeComponent(window.APP.world, window.APP.world.nameToComponent.owned, this.el.object3D.eid);
       }
       this.onOwnershipChangedEvent.oldOwner = oldOwner;
       this.onOwnershipChangedEvent.newOwner = newOwner;
@@ -581,6 +594,7 @@ AFRAME.registerComponent('networked', {
   },
 
   remove: function () {
+    window.APP.world.deletedNids.add(window.APP.getSid(this.data.networkId));
     if (this.isMine() && NAF.connection.isConnected()) {
       var syncData = { networkId: this.data.networkId };
       if (NAF.entities.hasEntity(this.data.networkId)) {
