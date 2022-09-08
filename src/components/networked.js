@@ -80,11 +80,9 @@ AFRAME.registerSystem("networked", {
     }
   },
 
-  tick: (function() {
-
-    return function() {
+  tick(time) {
       if (!NAF.connection.adapter) return;
-      if (this.el.clock.elapsedTime < this.nextSyncTime) return;
+      if (time < this.nextSyncTime) return;
 
       // "d" is an array of entity datas per entity in this.components.
       const data = { d: [] };
@@ -108,12 +106,7 @@ AFRAME.registerSystem("networked", {
         NAF.connection.broadcastData('um', data);
       }
 
-      this.updateNextSyncTime();
-    };
-  })(),
-
-  updateNextSyncTime() {
-    this.nextSyncTime = this.el.clock.elapsedTime + 1 / NAF.options.updateRate;
+      this.nextSyncTime = time + (1000 / NAF.options.updateRate);
   }
 });
 
