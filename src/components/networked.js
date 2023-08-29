@@ -194,6 +194,9 @@ AFRAME.registerComponent('networked', {
     document.body.dispatchEvent(this.entityCreatedEvent());
     this.el.dispatchEvent(new CustomEvent('instantiated', {detail: {el: this.el}}));
     this.el.sceneEl.systems.networked.register(this);
+    setTimeout(() => {
+      this.applyPersistentFirstSync();
+    }, 0);
   },
 
   attachTemplateToLocal: function() {

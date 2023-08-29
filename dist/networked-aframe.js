@@ -211,8 +211,8 @@
 	    throw new Error("Entity does not have and is not a child of an entity with the [networked] component ");
 	  }
 
-	  // Remote networked entity data isn't parsed immediately on the local client.
-	  // Because this only happens when the local client receives remote entity instantiation events we can return false.
+	  // When remote networked entities are initially created, there's a frame delay before they are completely instantiated.
+	  // On that frame, data is undefined so we can't check the owner. In this instance we assume that the user is not the owner of the entity.
 	  if (!curEntity.components.networked.data) {
 	    return false;
 	  }
@@ -949,7 +949,10 @@
 	    key: 'disconnect',
 	    value: function disconnect() {
 	      this.entities.removeRemoteEntities();
-	      this.adapter.disconnect();
+
+	      if (this.adapter) {
+	        this.adapter.disconnect();
+	      }
 
 	      NAF.app = '';
 	      NAF.room = '';
@@ -1764,6 +1767,28 @@
 	  };
 	}
 
+	function isValidVector3(v) {
+	  return !!(v.isVector3 && !isNaN(v.x) && !isNaN(v.y) && !isNaN(v.z) && v.x !== null && v.y !== null && v.z !== null);
+	}
+	function isValidQuaternion(q) {
+	  return !!(q.isQuaternion && !isNaN(q.x) && !isNaN(q.y) && !isNaN(q.z) && !isNaN(q.w) && q.x !== null && q.y !== null && q.z !== null && q.w !== null);
+	}
+
+	var throttle = function () {
+	  var previousLogTime = 0;
+	  return function throttle(f, milliseconds) {
+	    var now = Date.now();
+	    if (now - previousLogTime > milliseconds) {
+	      previousLogTime = now;
+	      f();
+	    }
+	  };
+	}();
+
+	function warnOnInvalidNetworkUpdate() {
+	  NAF.log.warn('Received invalid network update.');
+	}
+
 	AFRAME.registerSystem("networked", {
 	  init: function init() {
 	    // An array of "networked" component instances.
@@ -1831,6 +1856,8 @@
 	  },
 
 	  init: function init() {
+	    var _this = this;
+
 	    this.OWNERSHIP_GAINED = 'ownership-gained';
 	    this.OWNERSHIP_CHANGED = 'ownership-changed';
 	    this.OWNERSHIP_LOST = 'ownership-lost';
@@ -1902,6 +1929,9 @@
 	    document.body.dispatchEvent(this.entityCreatedEvent());
 	    this.el.dispatchEvent(new CustomEvent('instantiated', { detail: { el: this.el } }));
 	    this.el.sceneEl.systems.networked.register(this);
+	    setTimeout(function () {
+	      _this.applyPersistentFirstSync();
+	    }, 0);
 	  },
 
 	  attachTemplateToLocal: function attachTemplateToLocal() {
@@ -1974,18 +2004,18 @@
 	  },
 
 	  onConnected: function onConnected() {
-	    var _this = this;
+	    var _this2 = this;
 
 	    if (this.data.owner === '') {
 	      this.lastOwnerTime = NAF.connection.getServerTime();
 	      this.el.setAttribute(this.name, { owner: NAF.clientId, creator: NAF.clientId });
 	      setTimeout(function () {
 	        //a-primitives attach their components on the next frame; wait for components to be attached before calling syncAll
-	        if (!_this.el.parentNode) {
+	        if (!_this2.el.parentNode) {
 	          NAF.log.warn("Networked element was removed before ever getting the chance to syncAll");
 	          return;
 	        }
-	        _this.syncAll(undefined, true);
+	        _this2.syncAll(undefined, true);
 	      }, 0);
 	    }
 
@@ -2008,14 +2038,32 @@
 	        var object3D = bufferInfo.object3D;
 	        var componentNames = bufferInfo.componentNames;
 	        buffer.update(dt);
-	        if (componentNames.includes('position')) {
-	          object3D.position.copy(buffer.getPosition());
+	        if (componentNames.includes("position")) {
+	          var position = buffer.getPosition();
+	          if (isValidVector3(position)) {
+	            object3D.position.copy(position);
+	            object3D.matrixNeedsUpdate = true;
+	          } else {
+	            throttle(warnOnInvalidNetworkUpdate, 5000);
+	          }
 	        }
-	        if (componentNames.includes('rotation')) {
-	          object3D.quaternion.copy(buffer.getQuaternion());
+	        if (componentNames.includes("rotation")) {
+	          var quaternion = buffer.getQuaternion();
+	          if (isValidQuaternion(quaternion)) {
+	            object3D.quaternion.copy(quaternion);
+	            object3D.matrixNeedsUpdate = true;
+	          } else {
+	            throttle(warnOnInvalidNetworkUpdate, 5000);
+	          }
 	        }
-	        if (componentNames.includes('scale')) {
-	          object3D.scale.copy(buffer.getScale());
+	        if (componentNames.includes("scale")) {
+	          var scale = buffer.getScale();
+	          if (isValidVector3(scale)) {
+	            object3D.scale.copy(scale);
+	            object3D.matrixNeedsUpdate = true;
+	          } else {
+	            throttle(warnOnInvalidNetworkUpdate, 5000);
+	          }
 	        }
 	      }
 	    }
@@ -2450,7 +2498,7 @@
 	  }, {
 	    key: "slerp",
 	    value: function slerp(target, r1, r2, alpha) {
-	      THREE.Quaternion.slerp(r1, r2, target, alpha);
+	      target.slerpQuaternions(r1, r2, alpha);
 	    }
 	  }, {
 	    key: "updateOriginFrameToBufferTail",
